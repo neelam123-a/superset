@@ -110,6 +110,8 @@ from superset.views.base import (
     common_bootstrap_payload,
     create_table_permissions,
     CsvResponse,
+    ExcelResponse,
+    ImageResponse,
     data_payload_response,
     generate_download_headers,
     get_error_msg,
@@ -137,6 +139,460 @@ from superset.views.utils import (
     is_owner,
 )
 from superset.viz import BaseViz
+import json
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
+from matplotlib import style
+from PIL import Image
+import io
+import time
+from datetime import datetime
+import dateutil
+
+style.use('seaborn-poster')
+
+
+def plotLineChart(data, title=""):
+    # style.use(style)
+    '''
+    with open('MonthLinelabs.yatra.com.json') as json_file:
+        data = json.load(json_file)
+   '''
+
+    formData = data['form_data']
+    xLabel = formData['x_axis_label']
+    yLabel = formData['y_axis_label']
+
+    data = data['data']
+
+    labelValues = []
+    xData = []
+    yData = []
+
+    for dataRow in data:
+
+        key = dataRow['key']
+        labelValues.append(key)
+
+        # print(dataRow['key'])
+        # print("\n")
+        dataRow = dataRow['values']
+
+        xArray = []
+        yArray = []
+
+        for row in dataRow:
+            yArray.append(row['y'])
+            # print( row['x'].apply(lambda x: datetime.date(x.year,x.month,x.day)), type(row['x']))
+
+            # d = int(time.mktime(row['x']))/1000
+            d = row['x']
+            # myDateTime = dateutil.parser.parse(d)
+            # d = myDateTime.toordinal()
+            print(d, type(d))
+            # d = int(row['x']/1000)
+            # date = datetime.fromtimestamp(d).strftime('%Y-%m-%d %I:%M:%S %p')
+            # date = datetime.fromtimestamp(d).strftime('%b-%d')
+            xArray.append(d)
+            # xArray.append(date)
+
+        xData.append(xArray)
+        yData.append(yArray)
+
+    dateFormattedData = []
+    dateDifference = xData[0][-1] - xData[0][0]
+
+    if dateDifference > pd.Timedelta('30 days'):
+        print("The difference is more than 30 days")
+    else:
+        print("The difference is less than 30 days")
+    print(dateDifference, type(dateDifference))
+
+    # monthName = datetime.fromtimestamp(dateDifference).strftime('%B')
+
+    # print(monthName)
+
+    xTicks = []
+    xTickLabels = []
+    # dateDifference = 50
+    numToMonthDict = {1: 'January', 2: 'February', 3: 'March', 4: 'April', 5: 'May',
+                      6: 'June',
+                      7: 'July', 8: 'August', 9: 'September', 10: 'October',
+                      11: 'November', 12: 'December'}
+
+    numToMonthDictShort = {1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'May', 6: 'Jun',
+                           7: 'Jul', 8: 'Aug', 9: 'Sep', 10: 'Oct', 11: 'Nov',
+                           12: 'Dec'}
+
+    # if monthName == 'February' or monthName == 'January':
+
+    if dateDifference < pd.Timedelta('60 days'):
+        print("Date difference is in days")
+
+        for dataRow in xData:
+            xArray = []
+            for data in dataRow:
+                # date = datetime.fromtimestamp(data).strftime('%b-%d')
+                month = numToMonthDictShort[data.month]
+                if data.day < 10:
+                    date = month + '-0' + str(data.day)
+                else:
+                    date = month + '-' + str(data.day)
+
+                xArray.append(date)
+            dateFormattedData.append(xArray)
+
+        for index in range(len(dateFormattedData[0])):
+            if index % 2 == 0:
+                xTicks.append(dateFormattedData[0][index])
+                xTickLabels.append(dateFormattedData[0][index])
+
+    else:
+        # if monthName == 'June' or monthName == 'July' or monthName == 'August':
+        print("Date difference is in Months")
+        for dataRow in xData:
+            xArray = []
+            for data in dataRow:
+                # date = datetime.fromtimestamp(data).strftime('%B')
+                print(numToMonthDict[data.month])
+                date = numToMonthDict[data.month]
+                xArray.append(date)
+            dateFormattedData.append(xArray)
+
+        xTicks = dateFormattedData[0]
+        xTickLabels = dateFormattedData[0]
+
+    # print(  dateFormattedData )
+    '''
+    print(labelValues)
+    print(xData)
+    print(yData)
+    '''
+    # print(xData)
+    if dateDifference > pd.Timedelta('60 days'):
+        # if monthName == 'June' or monthName == 'July' or monthName == 'August':
+        for index in range(len(labelValues)):
+            plt.plot(dateFormattedData[index], yData[index], label=labelValues[index],
+                     linestyle='-', marker='o', linewidth=1.5)
+    else:
+        for index in range(len(labelValues)):
+            plt.plot(dateFormattedData[index], yData[index],
+                     label=labelValues[index][0], linestyle='-', marker='o',
+                     linewidth=1.5)
+
+    plt.legend(ncol=5)
+    plt.ticklabel_format(axis='y', style='plain')
+
+    plt.xlabel(xLabel)
+    plt.ylabel(yLabel)
+
+    plt.xticks(xTicks, xTickLabels, rotation=90)
+
+    # plt.savefig('linechart.svg')
+
+    fig = plt.gcf()
+    fig.set_size_inches(18.5, 10.5)
+    # fig.savefig(styleName + 'test2png.png', dpi=100)
+    plt.title(title)
+    plt.tight_layout()
+    return plt
+
+
+def plotPieChart(data, title=""):
+    '''
+    with open('PieChartlabs.yatra.com.json') as json_file:
+        data = json.load(json_file)
+    '''
+    form_data = data['form_data']
+    show_legend = form_data["show_legend"]
+    show_labels = form_data["show_labels"]
+    labels_outside = form_data["labels_outside"]
+    # print(show_legend)
+    # print(show_labels)
+    # print(labels_outside)
+
+    data = data['data']
+
+    xArray = []
+    yArray = []
+
+    for row in data:
+        # print(row)
+        xArray.append(row['x'])
+        yArray.append(row['y'])
+    total = sum(yArray)
+    labels = []
+
+    maxPercentage = 0
+    finalLabels = []
+
+    for index in range(len(xArray)):
+        xvalue = xArray[index]
+        yvalue = yArray[index]
+
+        percentage = round(yvalue / total * 100, 0)
+        finalLabels.append(xvalue)
+        if percentage > maxPercentage:
+            maxPercentage = percentage
+        label = xvalue + ': ' + str(percentage) + '%'
+        # print(label)
+
+        if percentage >= 5:
+            labels.append(label)
+        else:
+            labels.append("")
+
+    # print(labels)
+    # print(len(labels))
+
+    fig1, ax1 = plt.subplots()
+    ax1.pie(yArray, labels=labels,
+            startangle=90, counterclock=False)
+    ax1.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+    # plt.legend( ncol = 8 )
+    # plt.tight_layout()
+
+    if ("Air" in finalLabels) and ("Hotel" in finalLabels):
+        my_circle = plt.Circle((0, 0), 0.7, color='white')
+        p = plt.gcf()
+        p.gca().add_artist(my_circle)
+
+    # plt.savefig('piechart.svg')
+    plt.title(title)
+    return plt
+
+
+def plotSingleBarChart(data, title=""):
+    formData = data['form_data']
+    xLabel = formData['x_axis_label']
+    yLabel = formData['y_axis_label']
+
+    print(len(data['data']))
+    data = data['data'][0]
+
+    data = data['values']
+
+    xArray = []
+    yArray = []
+
+    # print(data)
+
+    for row in data:
+        # print(row)
+        xArray.append(row['x'])
+        yArray.append(row['y'])
+    N = len(xArray)
+    ind = np.arange(N)  # the x locations for the groups
+    width = 0.3  # the width of the bars
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.ticklabel_format(useOffset=False, style='plain')
+    yvals = yArray
+    print(yvals)
+    # rects1 = ax.bar(ind, yvals, width, color='r')
+    rects1 = ax.bar(ind, yvals, width)
+    plt.title(title)
+    ax.set_ylabel(yLabel)
+    ax.set_xlabel(xLabel)
+
+    ax.set_xticks(ind)
+    ax.set_xticklabels(xArray, rotation=90)
+
+    # ax.legend( (rects1[0]), labels )
+
+    def autolabel(rects):
+        for rect in rects:
+            h = rect.get_height()
+            if rect.get_x():
+                ax.text(rect.get_x() + rect.get_width() / 2., 1.0 * h, '%d' % int(h),
+                        ha='center', va='bottom')
+
+    autolabel(rects1)
+
+    # plt.title(title)
+    plt.tight_layout()
+
+    # plt.savefig('barchart.svg')
+    return plt
+
+
+def plotDoubleBarChart(data, title=""):
+    formData = data['form_data']
+    xLabel = formData['x_axis_label']
+    yLabel = formData['y_axis_label']
+
+    xData = []
+    yData = []
+    labels = []
+    for index in range(2):
+        dataIndex = data['data'][index]
+        key = dataIndex['key']
+
+        dataRow = dataIndex['values']
+        labels.append(key)
+
+        xArray = []
+        yArray = []
+
+        for row in dataRow:
+            # print(row)
+            xArray.append(row['x'])
+            if row['y']:
+                yArray.append(row['y'])
+            else:
+                yArray.append(0)
+
+        xData.append(xArray)
+        yData.append(yArray)
+
+    N = len(xData[0])
+    ind = np.arange(N)  # the x locations for the groups
+    width = 0.3  # the width of the bars
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+
+    yvals = yData[0]
+    print(yvals)
+    # rects1 = ax.bar(ind, yvals, width, color='r')
+    rects1 = ax.bar(ind, yvals, width)
+    zvals = yData[1]
+    # rects2 = ax.bar(ind+width, zvals, width, color='g')
+    rects2 = ax.bar(ind + width, zvals, width)
+    plt.title(title)
+    ax.set_ylabel(yLabel)
+    ax.set_xlabel(xLabel)
+    ax.set_xticks(ind + width / 2)
+    ax.set_xticklabels(xData[0], rotation=90)
+    ax.legend((rects1[0], rects2[0]), labels)
+
+    def autolabel(rects):
+        for rect in rects:
+            h = rect.get_height()
+            if rect.get_x():
+                ax.text(rect.get_x() + rect.get_width() / 2., 1.0 * h, '%d' % int(h),
+                        ha='center', va='bottom')
+
+    autolabel(rects1)
+    autolabel(rects2)
+
+    plt.tight_layout()
+    # plt.savefig('barchart.svg')
+    return plt
+
+
+def plotTripleBarChart(data, title=""):
+    formData = data['form_data']
+    xLabel = formData['x_axis_label']
+    yLabel = formData['y_axis_label']
+
+    xData = []
+    yData = []
+    labels = []
+    for index in range(3):
+        dataIndex = data['data'][index]
+        key = dataIndex['key']
+
+        dataRow = dataIndex['values']
+        labels.append(key)
+
+        xArray = []
+        yArray = []
+
+        for row in dataRow:
+            # print(row)
+            xArray.append(row['x'])
+            if row['y']:
+                yArray.append(row['y'])
+            else:
+                yArray.append(0)
+
+        xData.append(xArray)
+        yData.append(yArray)
+
+    N = len(xData[0])
+    ind = np.arange(N)  # the x locations for the groups
+    width = 0.3  # the width of the bars
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+
+    yvals = yData[0]
+    # print(yvals)
+    # rects1 = ax.bar(ind, yvals, width, color='r')
+    rects1 = ax.bar(ind, yvals, width)
+    zvals = yData[1]
+
+    # rects2 = ax.bar(ind+width, zvals, width, color='g')
+    rects2 = ax.bar(ind + width, zvals, width)
+    kvals = yData[2]
+    # rects3 = ax.bar(ind+width*2, kvals, width, color='b')
+    rects3 = ax.bar(ind + width * 2, kvals, width)
+
+    plt.title(title)
+    ax.set_ylabel('Scores')
+    ax.set_xticks(ind + width)
+    ax.set_xticklabels(xData[0], rotation=90)
+    ax.legend((rects1[0], rects2[0], rects3[0]), labels)
+
+    def autolabel(rects):
+        for rect in rects:
+            h = rect.get_height()
+            if rect.get_x():
+                ax.text(rect.get_x() + rect.get_width() / 2., 1.0 * h, '%d' % int(h),
+                        ha='center', va='bottom')
+
+    autolabel(rects1)
+    autolabel(rects2)
+    autolabel(rects3)
+
+    plt.tight_layout()
+    # plt.savefig('barchart.svg')
+    return plt
+
+
+def plotBarChart(data, title=""):
+    # this is for plotting purpose
+    '''
+    with open('BarChartlabs.yatra.com.json') as json_file:
+        data = json.load(json_file)
+    '''
+    totalBars = len(data["data"])
+
+    if totalBars == 1:
+        plt = plotSingleBarChart(data, title="")
+    elif totalBars == 2:
+        plt = plotDoubleBarChart(data, title="")
+
+    elif totalBars == 3:
+        plt = plotTripleBarChart(data, title="")
+    return plt
+
+
+def getImage(data=None, title=""):
+    '''
+    title = "Class Wise Bookings - Domestic "
+    with open('labs.yatra.com.json') as json_file:
+        data = json.load(json_file)
+    '''
+    formData = data['form_data']
+
+    viz_type = formData["viz_type"]
+
+    if viz_type == 'dist_bar':
+        plt = plotBarChart(data, title)
+
+    elif viz_type == 'pie':
+        plt = plotPieChart(data, title)
+    elif viz_type == 'line':
+        plt = plotLineChart(data, title)
+
+    bytes_image = io.BytesIO()
+    plt.savefig(bytes_image, format='jpg')
+    bytes_image.seek(0)
+    return bytes_image
 
 config = app.config
 CACHE_DEFAULT_TIMEOUT = config["CACHE_DEFAULT_TIMEOUT"]
@@ -427,6 +883,15 @@ class Superset(BaseSupersetView):  # pylint: disable=too-many-public-methods
     def generate_json(
         self, viz_obj: BaseViz, response_type: Optional[str] = None
     ) -> FlaskResponse:
+        payload = viz_obj.get_payload()
+        if response_type == utils.ChartDataResultFormat.XLSX:
+            return ExcelResponse(
+                viz_obj.get_excel(),
+                status=200,
+                headers=generate_download_headers("xlsx"),
+                mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+
         if response_type == utils.ChartDataResultFormat.CSV:
             return CsvResponse(
                 viz_obj.get_csv(),
@@ -434,6 +899,16 @@ class Superset(BaseSupersetView):  # pylint: disable=too-many-public-methods
                 headers=generate_download_headers("csv"),
                 mimetype="application/csv",
             )
+        '''
+        if response_type == utils.ChartDataResultFormat.JPG:
+            return ImageResponse(
+                getImage(payload),
+                # viz_obj.get_csv(),
+                status=200,
+                headers=generate_download_headers("jpg"),
+                mimetype="image/jpg",
+            )
+        '''
 
         if response_type == utils.ChartDataResultType.QUERY:
             return self.get_query_string_response(viz_obj)

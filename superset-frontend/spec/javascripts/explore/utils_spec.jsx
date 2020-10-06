@@ -89,6 +89,18 @@ describe('exploreUtils', () => {
         URI('/superset/explore_json/').search({ csv: 'true' }),
       );
     });
+    it('generates proper xlsx URL', () => {
+      const url = getExploreUrl({
+        formData,
+        endpointType: 'xlsx',
+        force: false,
+        curUrl: 'superset.com',
+      });
+      compareURI(
+        URI(url),
+        URI('/superset/explore_json/').search({ xlsx: 'true' }),
+      );
+    });
     it('generates proper standalone URL', () => {
       const url = getExploreUrl({
         formData,

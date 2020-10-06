@@ -74,6 +74,7 @@ from superset.utils.core import (
 )
 from superset.utils.dates import datetime_to_epoch
 from superset.utils.hashing import md5_sha_from_str
+from io import BytesIO
 
 if TYPE_CHECKING:
     from superset.connectors.base.models import BaseDatasource
@@ -617,6 +618,26 @@ class BaseViz:
         df = self.get_df()
         include_index = not isinstance(df.index, pd.RangeIndex)
         return df.to_csv(index=include_index, **config["CSV_EXPORT"])
+
+    def get_excel(self):
+        df = self.get_df()
+        include_index = not isinstance(df.index, pd.RangeIndex)
+        output = BytesIO()
+        writer = pd.ExcelWriter(output, engine='xlsxwriter')
+        df.to_excel(writer, startrow=0, merge_cells=False, sheet_name="Sheet_1")
+        workbook = writer.book
+        worksheet = writer.sheets["Sheet_1"]
+        format = workbook.add_format()
+        format.set_bg_color('#eeeeee')
+        worksheet.set_column(0, 9, 12)
+
+        # the writer has done its job
+        writer.close()
+
+        # go back to the beginning of the stream
+        output.seek(0)
+
+        return output
 
     def get_data(self, df: pd.DataFrame) -> VizData:
         return df.to_dict(orient="records")

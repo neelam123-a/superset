@@ -60,13 +60,15 @@ from superset.tasks.thumbnails import cache_chart_thumbnail
 from superset.utils.core import ChartDataResultFormat, json_int_dttm_ser
 from superset.utils.screenshots import ChartScreenshot
 from superset.utils.urls import get_url_path
+import pandas as pd
 from superset.views.base_api import (
     BaseSupersetModelRestApi,
     RelatedFieldFilter,
     statsd_metrics,
 )
-from superset.views.core import CsvResponse, generate_download_headers
+from superset.views.core import CsvResponse,ExcelResponse, generate_download_headers
 from superset.views.filters import FilterRelatedOwners
+from io import BytesIO
 
 logger = logging.getLogger(__name__)
 
@@ -181,6 +183,25 @@ class ChartRestApi(BaseSupersetModelRestApi):
     }
 
     allowed_rel_fields = {"owners", "created_by"}
+    def get_excel(self,**kwargs: Any):
+        df = self.get_df()
+        include_index = not isinstance(df.index, pd.RangeIndex)
+        output = BytesIO()
+        writer = pd.ExcelWriter(output, engine='xlsxwriter')
+        df.to_excel(writer, startrow=0, merge_cells=False, sheet_name="Sheet_1")
+        workbook = writer.book
+        worksheet = writer.sheets["Sheet_1"]
+        format = workbook.add_format()
+        format.set_bg_color('#eeeeee')
+        worksheet.set_column(0, 9, 12)
+
+        # the writer has done its job
+        writer.close()
+
+        # go back to the beginning of the stream
+        output.seek(0)
+
+        return output
 
     def __init__(self) -> None:
         if is_feature_enabled("THUMBNAILS"):
@@ -487,7 +508,6 @@ class ChartRestApi(BaseSupersetModelRestApi):
         response = self.response_400(
             message=f"Unsupported result_format: {result_format}"
         )
-
         if result_format == ChartDataResultFormat.CSV:
             # return the first result
             result = payload[0]["data"]
@@ -497,12 +517,24 @@ class ChartRestApi(BaseSupersetModelRestApi):
                 headers=generate_download_headers("csv"),
                 mimetype="application/csv",
             )
+        if result_format == ChartDataResultFormat.XLSX:
+            # return the first result
+            result = payload[0]["data"]
+            #print("asdfsfsdf>>>>",result)
+
+            response = ExcelResponse(
+                result,
+                status=200,
+                headers=generate_download_headers("xlsx"),
+                mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
 
         if result_format == ChartDataResultFormat.JSON:
             response_data = simplejson.dumps(
                 {"result": payload}, default=json_int_dttm_ser, ignore_nan=True
             )
             resp = make_response(response_data, 200)
+            resp.headers["Content-Type"] = "application/json; charset=utf-8"
             resp.headers["Content-Type"] = "application/json; charset=utf-8"
             response = resp
 

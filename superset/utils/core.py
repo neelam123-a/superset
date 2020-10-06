@@ -1519,6 +1519,8 @@ class ChartDataResultFormat(str, Enum):
 
     CSV = "csv"
     JSON = "json"
+    XLSX = "xlsx"
+   # JPG = "jpg"
 
 
 class TemporalType(str, Enum):

@@ -25,6 +25,7 @@ import URLShortLinkButton from '../../components/URLShortLinkButton';
 import EmbedCodeButton from './EmbedCodeButton';
 import ConnectedDisplayQueryButton from './DisplayQueryButton';
 import { exportChart, getExploreLongUrl } from '../exploreUtils';
+import downloadAsImage from 'src/utils/downloadAsImage';
 
 const propTypes = {
   actions: PropTypes.object.isRequired,
@@ -54,6 +55,13 @@ export default function ExploreActionButtons({
     resultType: 'results',
     resultFormat: 'csv',
   });
+  const doExportXLSX = exportChart.bind(this, {
+    formData: latestQueryFormData,
+    resultType: 'results',
+    resultFormat: 'xlsx',
+  });
+
+
   const doExportChart = exportChart.bind(this, {
     formData: latestQueryFormData,
     resultType: 'results',
@@ -98,6 +106,38 @@ export default function ExploreActionButtons({
           rel="noopener noreferrer"
         >
           <i className="fa fa-file-text-o" /> .csv
+        </a>
+      )}
+      {latestQueryFormData && (
+        <a
+          role="button"
+          tabIndex={0}
+          onClick={doExportXLSX}
+          className={exportToCSVClasses}
+          title={t('Export to .xlsx format')}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <i className="fa fa-file-text-o" /> .xlsx
+        </a>
+      )}
+      {latestQueryFormData && (
+        <a
+          role="button"
+          tabIndex={0}
+          onClick={downloadAsImage(
+            '.chart-container',
+            slice?.slice_name ?? t('New chart'),
+            {
+              height: parseInt(chartHeight, 10),
+            },
+          )}
+          className={exportToCSVClasses}
+          title={t('Export to .jpg format')}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <i className="fa fa-file-image-o" /> .jpg
         </a>
       )}
       <ConnectedDisplayQueryButton

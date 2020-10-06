@@ -106,6 +106,10 @@ setup(
         "sqlalchemy-utils>=0.36.6,<0.37",
         "sqlparse==0.3.0",  # PINNED! see https://github.com/andialbrecht/sqlparse/issues/562
         "wtforms-json",
+        "xlsxwriter",
+        "matplotlib",
+        "mysqlclient",
+        "markupsafe"
     ],
     extras_require={
         "athena": ["pyathena>=1.10.8,<1.11"],

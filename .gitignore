@@ -47,6 +47,7 @@ venv*
 env_py3
 envpy3
 env36
+super_env
 local_config.py
 /superset_config.py
 superset.egg-info/
