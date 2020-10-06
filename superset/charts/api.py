@@ -183,7 +183,7 @@ class ChartRestApi(BaseSupersetModelRestApi):
     }
 
     allowed_rel_fields = {"owners", "created_by"}
-    def get_excel(self,**kwargs: Any):
+    def get_excel(self):
         df = self.get_df()
         include_index = not isinstance(df.index, pd.RangeIndex)
         output = BytesIO()
